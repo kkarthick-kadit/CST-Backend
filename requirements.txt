@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+jinja2
+pymongo
+sentence-transformers
+transformers
+langchain
+langchain-huggingface
+langchain-groq
+langchain-openai
+langchain-mongodb
+requests

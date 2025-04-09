@@ -1,0 +1,6 @@
+cst
+__pycache__
+*.ipynb
+test.*
+.vs*
+.env

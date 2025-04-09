@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protein Search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .search-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+        .search-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .k-value-container {
+            display: flex;
+            align-items: center;
+        }
+        .k-value-label {
+            margin-right: 10px;
+            font-size: 14px;
+        }
+        .k-value-input {
+            width: 60px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .toggle-container {
+            display: flex;
+            align-items: center;
+        }
+        .toggle-label {
+            margin-right: 10px;
+            font-size: 14px;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: #4CAF50;
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+        .results-container {
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+        .result-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        .result-item:hover {
+            background-color: #f9f9f9;
+        }
+        .protein-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .organism {
+            color: #666;
+            font-size: 14px;
+        }
+        .gene-info {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .gene-label {
+            color: #777;
+            font-size: 14px;
+        }
+        .gene-value {
+            font-size: 14px;
+        }
+        .synonyms {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #555;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="search-container">
+        <h1 class="page-header">CST Search</h1>
+        <input type="text" id="searchInput" class="search-box" placeholder="Search proteins, genes, or UniProt IDs..." autocomplete="off">
+        <div class="search-options">
+            <div class="k-value-container">
+                <span class="k-value-label">Results limit (k):</span>
+                <input type="number" id="kValueInput" class="k-value-input" value="5" min="1" max="100">
+            </div>
+            <div class="toggle-container">
+                <span class="toggle-label">From another source:</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="anotherSourceToggle">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+        <div class="results-container" id="resultsContainer">
+            <!-- Results will be displayed here -->
+        </div>
+    </div>
+
+    <script>
+        let debounceTimer;
+        const searchInput = document.getElementById('searchInput');
+        const kValueInput = document.getElementById('kValueInput');
+        const anotherSourceToggle = document.getElementById('anotherSourceToggle');
+        const resultsContainer = document.getElementById('resultsContainer');
+
+        // Function to handle the search
+        async function performSearch(query) {
+            if (!query || query.trim() === '') {
+                resultsContainer.innerHTML = '';
+                return;
+            }
+
+            // Show loading indicator
+            resultsContainer.innerHTML = '<div class="loading">Searching...</div>';
+
+            try {
+                // Get the current k value and another source toggle state
+                const kValue = parseInt(kValueInput.value) || 5;
+                const fromAnotherSource = anotherSourceToggle.checked;
+                
+                // Build the query URL with all parameters
+                const searchUrl = `/search?query=${encodeURIComponent(query)}&k=${kValue}&from_another_source=${fromAnotherSource}`;
+                
+                const response = await fetch(searchUrl);
+                const data = await response.json();
+                
+                displayResults(data.results);
+            } catch (error) {
+                console.error('Error performing search:', error);
+                resultsContainer.innerHTML = '<div class="loading">An error occurred while searching.</div>';
+            }
+        }
+
+        // Function to safely get a property from an object
+        function safeGetProperty(obj, propPath, defaultValue = 'N/A') {
+            if (!obj) return defaultValue;
+            
+            // Handle property names with special characters or bracket notation
+            if (propPath.includes('#')) {
+                // Use bracket notation for properties with special characters
+                return obj["Reference #"] || defaultValue;
+            }
+            
+            return obj[propPath] || defaultValue;
+        }
+        
+        // Function to extract UniProt ID from a string (either direct ID or full URL)
+        function extractUniProtId(value) {
+            if (!value) return 'N/A';
+            
+            // If it's a URL like "https://www.uniprot.org/uniprotkb/P12345/entry"
+            if (typeof value === 'string' && value.includes('uniprot.org')) {
+                // Extract the ID part from the URL
+                const matches = value.match(/uniprotkb\/([A-Z0-9_-]+)/i);
+                if (matches && matches[1]) {
+                    return matches[1];
+                }
+            }
+            
+            // Otherwise, return the value as is (assuming it's just the ID)
+            return value;
+        }
+
+        // Function to display search results
+        function displayResults(results) {
+            if (!results || results.length === 0) {
+                resultsContainer.innerHTML = '<div class="loading">No results found.</div>';
+                return;
+            }
+
+            resultsContainer.innerHTML = '';
+            
+            results.forEach(result => {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                
+                // Extract protein name (first synonym if available)
+                const synonyms = result.text ? result.text.split(';').map(s => s.trim()) : [];
+                const proteinName = synonyms.length > 0 ? synonyms[0] : 'Unknown Protein';
+                
+                // Get the metadata safely
+                const organism = safeGetProperty(result.metadata, 'Organism', 'Unknown');
+                const geneSymbols = safeGetProperty(result.metadata, 'Gene Symbols') || 
+                                  safeGetProperty(result.metadata, 'Gene_Symbols');
+                const hgncid = safeGetProperty(result.metadata,"HGNC_ID");
+                const source = safeGetProperty(result.metadata,"Source");
+                
+                // Get and process UniProt ID
+                let rawUniprotValue = result.metadata ? 
+                    (result.metadata["Reference #"] || 'N/A') : 'N/A';
+                const uniprotId = extractUniProtId(rawUniprotValue);
+                
+                // Create HTML for the result item
+                let resultHTML = `
+                    <div class="protein-name">${proteinName}</div>
+                    <div class="organism">${organism}</div>
+                    <div class="gene-info">
+                        <span class="gene-label">gene</span>
+                        <span class="gene-value">${geneSymbols}</span>
+                        <span class="gene-label">Source</span>
+                        <span class="gene-value">${source}</span>
+                        <span class="gene-label">uniprot</span>  
+                        <a href="https://www.uniprot.org/uniprotkb/${uniprotId}" class="gene-value" target="_blank" >${uniprotId}</a>
+                        <span class="gene-label">HGNC ID</span>
+                        <a href="https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/HGNC:${hgncid}" class="gene-value" target="_blank">${hgncid}</a>
+                    </div>
+                `;
+                
+                // Add synonyms if available
+                if (synonyms.length > 1) {
+                    resultHTML += `
+                        <div class="synonyms">
+                            <span class="gene-label">synonyms</span>
+                            ${synonyms.slice(1).join(', ')}
+                        </div>
+                    `;
+                }
+                
+                item.innerHTML = resultHTML;
+                resultsContainer.appendChild(item);
+            });
+        }
+
+        // Set up debounced search on input
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                performSearch(this.value);
+            }, 700); // 700ms debounce delay
+        });
+
+        // Trigger search when k value changes
+        kValueInput.addEventListener('change', function() {
+            if (searchInput.value.trim() !== '') {
+                performSearch(searchInput.value);
+            }
+        });
+
+        // Trigger search when another source toggle changes
+        anotherSourceToggle.addEventListener('change', function() {
+            if (searchInput.value.trim() !== '') {
+                performSearch(searchInput.value);
+            }
+        });
+
+        // Initial search if URL has query parameter
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const initialQuery = urlParams.get('query');
+            const initialK = urlParams.get('k');
+            const initialSource = urlParams.get('from_another_source');
+            
+            // Set initial values from URL parameters if available
+            if (initialK) {
+                kValueInput.value = initialK;
+            }
+            
+            if (initialSource === 'true') {
+                anotherSourceToggle.checked = true;
+            }
+            
+            if (initialQuery) {
+                searchInput.value = initialQuery;
+                performSearch(initialQuery);
+            }
+        });
+    </script>
+</body>
+</html>
