@@ -66,7 +66,6 @@ def extract_entry_info_from_uniprot(query):
                 "Source": "Uniprot"
             }
         })
-    print(formatted_entries)
     return formatted_entries
 
 

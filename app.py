@@ -43,7 +43,7 @@ def run_retriever(query,k):
         query, k=k
     )
     print(results[0][0].page_content)
-    results = [{"text": i[0].page_content,"metadata":i[0].metadata["metadata"], "score": i[1]} for i in results]
+    results = [{"text": i[0].page_content,"metadata":i[0].metadata["metadata"], "score": i[1]} for i in results if i[1]>0.5]
     results = process_results(results)
 
 

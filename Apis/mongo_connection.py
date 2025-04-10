@@ -4,11 +4,11 @@ from langchain_mongodb import MongoDBAtlasVectorSearch
 from langchain_core.documents import Document
 import time
 import re
-
+import os
 
 
 # Connect to your Atlas cluster
-client = MongoClient("mongodb+srv://Karthikeyan:1968310@cluster0.8p4wz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+client = MongoClient(os.getenv("MONGODB_URI"))
 # client = MongoClient("mongodb://localhost:27017/")
 collection = client["DEV"]["PHOSPHOSITE"]
 

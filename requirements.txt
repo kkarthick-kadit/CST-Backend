@@ -10,3 +10,6 @@ langchain-groq
 langchain-openai
 langchain-mongodb
 requests
+langchain_community
+pandas
+hf_xet
